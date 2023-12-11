@@ -14,7 +14,7 @@ import os
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
 set_api_key("99128584b98eb68e0e4f3289f7386063")
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = ''
 
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
@@ -100,6 +100,9 @@ def handle_interview(user_input):
         reviewlog = ""
         bob_response = send_to_bob("Please start the interview.")
         print("Bob:", bob_response)  # Print Bob's first question immediately
+    elif "summarize interview" in user_input.lower():
+        dan_response = send_to_dan("SUMMARIZE")
+        bob_response = "That concludes your interview. Great job!"
     else:
         dan_response = send_to_dan(user_input)
         sender = "Dan(reviewer)"
