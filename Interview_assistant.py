@@ -15,7 +15,7 @@ from elevenlabs import generate
 from elevenlabs import play  
 
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 # Initialize conversation lists
 bob_system_prompt = {
