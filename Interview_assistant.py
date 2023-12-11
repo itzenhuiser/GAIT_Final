@@ -1,8 +1,21 @@
 import gradio as gr
 import openai
 
+import elevenlabs
+from elevenlabs import VoiceSettings  
+
+from elevenlabs import set_api_key
+
+set_api_key("99128584b98eb68e0e4f3289f7386063")
+
+from elevenlabs import generate  
+
+## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
+
+from elevenlabs import play  
+
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 # Initialize conversation lists
 bob_system_prompt = {
@@ -80,6 +93,9 @@ def handle_interview(user_input, is_user_response, ask_new_question):
         chatgpt_dan_messages.clear()
         bob_response = send_to_bob("Please start the interview.")
         print("Bob:", bob_response)  # Print Bob's first question immediately
+        audio = generate(bob_response, voice = "Bill")
+        play(audio)
+
         is_user_response = True
         ask_new_question = False
     elif is_user_response:
@@ -90,6 +106,8 @@ def handle_interview(user_input, is_user_response, ask_new_question):
     elif ask_new_question:
         bob_response = send_to_bob("Next question, please.")
         print("Bob:", bob_response)  # Print Bob's next question immediately
+        audio = generate(bob_response, voice = "Bill")
+        play(audio)
         is_user_response = True
         ask_new_question = False
 
