@@ -14,7 +14,7 @@ import os
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
 set_api_key("99128584b98eb68e0e4f3289f7386063")
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
@@ -27,6 +27,9 @@ dan_system_prompt = {
     "content": "Dan is a communications specialist, with an expert knowledgebase on interviews. Dan will oversee mock interviews between a user and a different assistant, Bob, who is asking the interview questions. Dan's sole purpose is to grade the users' responses to Bob's interview questions. The assigned grades can be anything in-between an F and an A+. Dans response should only consist of a grade for the users answer to the question, a concise bullet point list of what the user said that was good, and a concise bullet point list of areas that the user can work on in their response. Do not be afraid to give a poor grade to what you might consider a poor response, you will not hurt anyones feelings. Giving poor grades is good feedback for the user so they know what they need to improve upon. For a baseline, anything average, that does not go above and beyond, should be graded as a C. Additionally, when you recieve the input 'SUMMARIZE', you are to re read over the full interview, and provide a grade based on all of the answers that the user gave. Your response should start with 'Full Interview Summary' and you should then provide a grade in the same format that you do for individual questions."
 }
 
+
+chatlog = ""
+reviewlog = ""
 # Initialize conversation lists
 chatgpt_bob_messages = []
 chatgpt_dan_messages = []
@@ -87,34 +90,25 @@ def format_conversation(user_input):
 
 
 def handle_interview(user_input):
-    global chatgpt_bob_messages, chatgpt_dan_messages, is_user_response, ask_new_question
-    response = ""
-    sender = "Bob(interviewer)"
+    global chatgpt_bob_messages, chatgpt_dan_messages, is_user_response, ask_new_question, chatlog, reviewlog
+    bob_response = ""
+    dan_response = ""
     if "start" in user_input.lower():
         chatgpt_bob_messages.clear()
         chatgpt_dan_messages.clear()
+        chatlog = ""
+        reviewlog = ""
         bob_response = send_to_bob("Please start the interview.")
-        response = bob_response
         print("Bob:", bob_response)  # Print Bob's first question immediately
-        
-        is_user_response = True
-        ask_new_question = False
-    elif is_user_response:
+    else:
         dan_response = send_to_dan(user_input)
-        response = dan_response
         sender = "Dan(reviewer)"
         print("Dan:", dan_response)  # Print Dan's feedback immediately
-        is_user_response = False
-        ask_new_question = True
-    elif ask_new_question:
         bob_response = send_to_bob("Next question, please.")
-        response = bob_response
         print("Bob:", bob_response)  # Print Bob's next question immediately
-        is_user_response = True
-        ask_new_question = False
 
     # No need to format the conversation here as each part is printed immediately
-    return response, sender
+    return bob_response, dan_response
 
 def update_audio(file_path):
     return gr.Audio(value=file_path, autoplay=True)
@@ -126,16 +120,18 @@ def transcribe_audio(response):
 
 
 def transcribe(audio):
-    global is_user_response, ask_new_question
+    global is_user_response, ask_new_question, chatlog, reviewlog
     sr, y = audio
     y = y.astype(np.float32)
     y /= np.max(np.abs(y))
     user_text = transcriber({"sampling_rate": sr, "raw": y})["text"]
-    response, sender = handle_interview(user_text)
-    if sender == "Bob(interviewer)":
-        transcribe_audio(response)
-    show_text = "User: " + user_text + "\n" + sender + ": " + response
-    return show_text, update_audio(os.path.join(os.path.dirname(__file__), "audio_files/bobs_voice.mp3"))
+    bob_response, dan_response = handle_interview(user_text)
+    transcribe_audio(bob_response)
+    show_text = "User: " + user_text + "\n" + "Bob: " + bob_response
+    if dan_response != "":
+        reviewlog += "\n" + "Feedback on your response to the question: " + bob_response + "\n" + dan_response + "\n"
+    chatlog += show_text + "\n"
+    return chatlog, update_audio(os.path.join(os.path.dirname(__file__), "audio_files/bobs_voice.mp3")), reviewlog
 
 
 def main():
@@ -146,7 +142,7 @@ def main():
     demo = gr.Interface(
     fn=transcribe,
     inputs=[gr.Audio(sources=["microphone"])],
-    outputs=[gr.Textbox(label="Transcribed Text"), gr.Audio(label="Updated Audio", type="filepath", autoplay=True)]
+    outputs=[gr.Textbox(label="Transcribed Text", value = "Say start and submit to begin interview"), gr.Audio(label="Interviewer", type="filepath", autoplay=True), gr.Textbox(label="Dan's feedback", value="Waiting for response to give feedback")]
     )
 
     demo.launch()
