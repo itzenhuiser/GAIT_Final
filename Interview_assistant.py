@@ -2,7 +2,7 @@ import gradio as gr
 import openai
 
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 # Initialize conversation lists
 bob_system_prompt = {
@@ -55,23 +55,21 @@ def send_to_dan(bob_response):
 def format_conversation(user_input):
     formatted_conversation = ""
 
-    # Display the last message from Bob (if any)
+    # Display the last message from Bob
     if chatgpt_bob_messages:
         last_bob_message = chatgpt_bob_messages[-1]['content']
         formatted_conversation += "Bob: " + last_bob_message + "\n"
 
     # Display the user's input
-    if user_input:
+    if user_input and user_input.lower() != 'start':
         formatted_conversation += "User: " + user_input + "\n"
 
-    # Display the last message from Dan (if any)
+    # Display the last message from Dan
     if chatgpt_dan_messages:
         last_dan_message = chatgpt_dan_messages[-1]['content']
         formatted_conversation += "Dan: " + last_dan_message + "\n"
 
     return formatted_conversation
-
-
 
 
 def handle_interview(user_input, is_user_response, ask_new_question):
@@ -80,24 +78,23 @@ def handle_interview(user_input, is_user_response, ask_new_question):
     if user_input.lower() == "start":
         chatgpt_bob_messages.clear()
         chatgpt_dan_messages.clear()
-        send_to_bob("Please start the interview.")
+        bob_response = send_to_bob("Please start the interview.")
+        print("Bob:", bob_response)  # Print Bob's first question immediately
         is_user_response = True
         ask_new_question = False
     elif is_user_response:
-        send_to_dan(user_input)
+        dan_response = send_to_dan(user_input)
+        print("Dan:", dan_response)  # Print Dan's feedback immediately
         is_user_response = False
         ask_new_question = True
     elif ask_new_question:
-        send_to_bob(user_input)
+        bob_response = send_to_bob("Next question, please.")
+        print("Bob:", bob_response)  # Print Bob's next question immediately
         is_user_response = True
         ask_new_question = False
 
-    conversation = format_conversation(user_input)
-    return conversation, is_user_response, ask_new_question
-
-
-
-
+    # No need to format the conversation here as each part is printed immediately
+    return is_user_response, ask_new_question
 
 
 # Create Gradio Interface
@@ -116,10 +113,16 @@ def main():
     user_input = input("User: ")
     is_user_response = False
     ask_new_question = False
+
     while user_input.lower() != 'exit':
-        conversation, is_user_response, ask_new_question = handle_interview(user_input, is_user_response, ask_new_question)
-        print(conversation)
-        user_input = input("User: ")
+        is_user_response, ask_new_question = handle_interview(user_input, is_user_response, ask_new_question)
+
+        if ask_new_question:
+            # Automatically trigger Bob to ask the next question without user input
+            user_input = "Next question, please."
+            #print("Automatically asking for the next question...")
+        else:
+            user_input = input("User: ")
 
 if __name__ == "__main__":
     main()
