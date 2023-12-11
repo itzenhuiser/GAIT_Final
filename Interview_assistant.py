@@ -3,10 +3,7 @@ import openai
 import gradio as gr
 from transformers import pipeline
 import numpy as np
-import elevenlabs
-from elevenlabs import VoiceSettings  
 from elevenlabs import set_api_key
-from elevenlabs import play  
 from elevenlabs import generate  
 import os
 
@@ -14,13 +11,13 @@ import os
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
 set_api_key("99128584b98eb68e0e4f3289f7386063")
 # Initialize your OpenAI API key
-openai.api_key = ''
+openai.api_key = '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'
 
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
 bob_system_prompt = {
     "role": "system",
-    "content": "You are Bob, an expert interviewer in all fields. You will be holding a mock interview with a user. Your sole job is to ask popular interview questions to a user. Your questions should not be longer than three sentences long. There will be a separate assistant, Dan, who will be grading the user's responses to your questions. Because of this, you do not need to give any feedback on user's responses. You will simply continue to ask questions to the user until they say stop. You will BEGIN asking interview questions when the user says 'start'. The interview will END when the user says anything along the lines of 'im done'. To be extra clear, whenever the user says 'start', YOU need to start asking interview quesitons."
+    "content": "You are Bob, an expert interviewer in all fields. You will be holding a mock interview with a user. Your sole job is to ask popular interview questions to a user. Your questions should not be longer than three sentences long. There will be a separate assistant, Dan, who will be grading the user's responses to your questions. Because of this, you do NOT need to give any feedback on user's responses. You will receive the user's response to each question. Use the user's response to ask ONE follow up question related to the user's response the next time you are prompted for a question. Do NOT respond to the user's responses. You will simply continue to ask questions to the user until they say stop. You will BEGIN asking interview questions when the user says 'start'. The interview will END when the user says anything along the lines of 'im done'. To be extra clear, whenever the user says 'start', YOU need to start asking interview quesitons."
 }
 dan_system_prompt = {
     "role": "system",
@@ -33,8 +30,6 @@ reviewlog = ""
 # Initialize conversation lists
 chatgpt_bob_messages = []
 chatgpt_dan_messages = []
-is_user_response = False
-ask_new_question = False
 # Function to send user input to Bob and get a response
 def send_to_bob(user_input):
     messages = [bob_system_prompt] + chatgpt_bob_messages
@@ -69,48 +64,23 @@ def send_to_dan(bob_response):
     chatgpt_dan_messages.append(message)
     return message['content']
 
-def format_conversation(user_input):
-    formatted_conversation = ""
-
-    # Display the last message from Bob
-    if chatgpt_bob_messages:
-        last_bob_message = chatgpt_bob_messages[-1]['content']
-        formatted_conversation += "Bob: " + last_bob_message + "\n"
-
-    # Display the user's input
-    if user_input and user_input.lower() != 'start':
-        formatted_conversation += "User: " + user_input + "\n"
-
-    # Display the last message from Dan
-    if chatgpt_dan_messages:
-        last_dan_message = chatgpt_dan_messages[-1]['content']
-        formatted_conversation += "Dan: " + last_dan_message + "\n"
-
-    return formatted_conversation
-
-
 def handle_interview(user_input):
-    global chatgpt_bob_messages, chatgpt_dan_messages, is_user_response, ask_new_question, chatlog, reviewlog
+    global chatgpt_bob_messages, chatgpt_dan_messages, chatlog, reviewlog
     bob_response = ""
     dan_response = ""
-    if "start" in user_input.lower():
+    if "start interview" in user_input.lower():
         chatgpt_bob_messages.clear()
         chatgpt_dan_messages.clear()
         chatlog = ""
         reviewlog = ""
         bob_response = send_to_bob("Please start the interview.")
-        print("Bob:", bob_response)  # Print Bob's first question immediately
     elif "summarize interview" in user_input.lower():
         dan_response = send_to_dan("SUMMARIZE")
         bob_response = "That concludes your interview. Great job!"
     else:
         dan_response = send_to_dan(user_input)
-        sender = "Dan(reviewer)"
-        print("Dan:", dan_response)  # Print Dan's feedback immediately
+        send_to_bob(user_input)
         bob_response = send_to_bob("Next question, please.")
-        print("Bob:", bob_response)  # Print Bob's next question immediately
-
-    # No need to format the conversation here as each part is printed immediately
     return bob_response, dan_response
 
 def update_audio(file_path):
@@ -123,14 +93,14 @@ def transcribe_audio(response):
 
 
 def transcribe(audio):
-    global is_user_response, ask_new_question, chatlog, reviewlog
+    global chatlog, reviewlog
     sr, y = audio
     y = y.astype(np.float32)
     y /= np.max(np.abs(y))
     user_text = transcriber({"sampling_rate": sr, "raw": y})["text"]
     bob_response, dan_response = handle_interview(user_text)
     transcribe_audio(bob_response)
-    show_text = "User: " + user_text + "\n" + "Bob: " + bob_response
+    show_text = "User: " + user_text + "\n" + "Bob(Interviewer): " + bob_response
     if dan_response != "":
         reviewlog += "\n" + "Feedback on your response to the question: " + bob_response + "\n" + dan_response + "\n"
     chatlog += show_text + "\n"
@@ -138,27 +108,13 @@ def transcribe(audio):
 
 
 def main():
-    #print("Type 'start' to begin the interview, or 'exit' to quit:")
-    #user_input = input("User: ")
-    #is_user_response = False
-    #ask_new_question = False
     demo = gr.Interface(
     fn=transcribe,
     inputs=[gr.Audio(sources=["microphone"])],
-    outputs=[gr.Textbox(label="Transcribed Text", value = "Say start and submit to begin interview"), gr.Audio(label="Interviewer", type="filepath", autoplay=True), gr.Textbox(label="Dan's feedback", value="Waiting for response to give feedback")]
+    outputs=[gr.Textbox(label="Transcribed Text", value = "Say \"Start Interview\" and submit to begin interview \nSay \"Summarize Interview\" and submit to receive a full interview summary"), gr.Audio(label="Interviewer", type="filepath", autoplay=True), gr.Textbox(label="Dan(Reviewer)'s feedback", value="Waiting for response to give feedback")]
     )
 
     demo.launch()
-    '''while user_input.lower() != 'exit':
-        is_user_response, ask_new_question = handle_interview(user_input, is_user_response, ask_new_question)
-
-        if ask_new_question:
-            # Automatically trigger Bob to ask the next question without user input
-            user_input = "Next question, please."
-            #print("Automatically asking for the next question...")
-        else:
-            user_input = input("User: ")
-'''
 if __name__ == "__main__":
     main()
 
