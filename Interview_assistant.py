@@ -1,6 +1,8 @@
 import gradio as gr
 import openai
-
+import gradio as gr
+from transformers import pipeline
+import numpy as np
 import elevenlabs
 from elevenlabs import VoiceSettings  
 
@@ -15,8 +17,8 @@ from elevenlabs import generate
 from elevenlabs import play  
 
 # Initialize your OpenAI API key
-openai.api_key = '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'
-
+openai.api_key = ''
+transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
 bob_system_prompt = {
     "role": "system",
@@ -30,7 +32,8 @@ dan_system_prompt = {
 # Initialize conversation lists
 chatgpt_bob_messages = []
 chatgpt_dan_messages = []
-
+is_user_response = False
+ask_new_question = False
 # Function to send user input to Bob and get a response
 def send_to_bob(user_input):
     messages = [bob_system_prompt] + chatgpt_bob_messages
@@ -85,54 +88,64 @@ def format_conversation(user_input):
     return formatted_conversation
 
 
-def handle_interview(user_input, is_user_response, ask_new_question):
-    global chatgpt_bob_messages, chatgpt_dan_messages
-
-    if user_input.lower() == "start":
+def handle_interview(user_input):
+    global chatgpt_bob_messages, chatgpt_dan_messages, is_user_response, ask_new_question
+    response = ""
+    sender = "Bob(interviewer)"
+    if "start" in user_input.lower():
         chatgpt_bob_messages.clear()
         chatgpt_dan_messages.clear()
         bob_response = send_to_bob("Please start the interview.")
+        response = bob_response
         print("Bob:", bob_response)  # Print Bob's first question immediately
-        audio = generate(bob_response, voice = "Bill")
-        play(audio)
+        #audio = generate(bob_response, voice = "Bill")
+        #play(audio)
 
         is_user_response = True
         ask_new_question = False
     elif is_user_response:
         dan_response = send_to_dan(user_input)
+        response = dan_response
+        sender = "Dan(reviewer)"
         print("Dan:", dan_response)  # Print Dan's feedback immediately
         is_user_response = False
         ask_new_question = True
     elif ask_new_question:
         bob_response = send_to_bob("Next question, please.")
+        response = bob_response
         print("Bob:", bob_response)  # Print Bob's next question immediately
-        audio = generate(bob_response, voice = "Bill")
-        play(audio)
+        #audio = generate(bob_response, voice = "Bill")
+        #play(audio)
         is_user_response = True
         ask_new_question = False
 
     # No need to format the conversation here as each part is printed immediately
-    return is_user_response, ask_new_question
+    return is_user_response, ask_new_question, response, sender
 
+def transcribe(audio):
+    global is_user_response, ask_new_question
+    sr, y = audio
+    y = y.astype(np.float32)
+    y /= np.max(np.abs(y))
+    user_text = transcriber({"sampling_rate": sr, "raw": y})["text"]
+    is_user_response, ask_new_question, response, sender = handle_interview(user_text)
+    show_text = "User: " + user_text + "\n" + sender + ": " + response
+    return show_text
 
-# Create Gradio Interface
-# iface = gr.Interface(
-#     fn=handle_interview,
-#     inputs=gr.Textbox(lines=2, placeholder="Type here..."),
-#     outputs=gr.Textbox(label="Conversation"),
-# )
-
-
-# # Launch the application
-# iface.launch()
 
 def main():
-    print("Type 'start' to begin the interview, or 'exit' to quit:")
-    user_input = input("User: ")
-    is_user_response = False
-    ask_new_question = False
+    #print("Type 'start' to begin the interview, or 'exit' to quit:")
+    #user_input = input("User: ")
+    #is_user_response = False
+    #ask_new_question = False
+    demo = gr.Interface(
+    fn=transcribe,
+    inputs=[gr.Audio(sources=["microphone"])],
+    outputs=["text"]
+    )
 
-    while user_input.lower() != 'exit':
+    demo.launch()
+    '''while user_input.lower() != 'exit':
         is_user_response, ask_new_question = handle_interview(user_input, is_user_response, ask_new_question)
 
         if ask_new_question:
@@ -141,7 +154,7 @@ def main():
             #print("Automatically asking for the next question...")
         else:
             user_input = input("User: ")
-
+'''
 if __name__ == "__main__":
     main()
 

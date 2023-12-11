@@ -8,13 +8,14 @@ def transcribe(audio):
     sr, y = audio
     y = y.astype(np.float32)
     y /= np.max(np.abs(y))
-    return transcriber({"sampling_rate": sr, "raw": y})["text"]
+    text = transcriber({"sampling_rate": sr, "raw": y})["text"]
+    return text
 
 
 demo = gr.Interface(
     transcribe,
     gr.Audio(sources=["microphone"]),
-    "text",
+    outputs = "text",
 )
 
 demo.launch()
