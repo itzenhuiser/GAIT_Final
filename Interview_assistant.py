@@ -114,7 +114,7 @@ def handle_interview(user_input):
         ask_new_question = False
 
     # No need to format the conversation here as each part is printed immediately
-    return is_user_response, ask_new_question, response, sender
+    return response, sender
 
 def update_audio(file_path):
     return gr.Audio(value=file_path, autoplay=True)
@@ -131,7 +131,7 @@ def transcribe(audio):
     y = y.astype(np.float32)
     y /= np.max(np.abs(y))
     user_text = transcriber({"sampling_rate": sr, "raw": y})["text"]
-    is_user_response, ask_new_question, response, sender = handle_interview(user_text)
+    response, sender = handle_interview(user_text)
     if sender == "Bob(interviewer)":
         transcribe_audio(response)
     show_text = "User: " + user_text + "\n" + sender + ": " + response
