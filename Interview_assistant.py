@@ -5,19 +5,17 @@ from transformers import pipeline
 import numpy as np
 import elevenlabs
 from elevenlabs import VoiceSettings  
-
 from elevenlabs import set_api_key
-
-set_api_key("99128584b98eb68e0e4f3289f7386063")
-
+from elevenlabs import play  
 from elevenlabs import generate  
+import os
+
 
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
-
-from elevenlabs import play  
-
+set_api_key("99128584b98eb68e0e4f3289f7386063")
 # Initialize your OpenAI API key
-openai.api_key = ''
+openai.api_key = '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'
+
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
 bob_system_prompt = {
@@ -98,9 +96,7 @@ def handle_interview(user_input):
         bob_response = send_to_bob("Please start the interview.")
         response = bob_response
         print("Bob:", bob_response)  # Print Bob's first question immediately
-        #audio = generate(bob_response, voice = "Bill")
-        #play(audio)
-
+        
         is_user_response = True
         ask_new_question = False
     elif is_user_response:
@@ -114,13 +110,20 @@ def handle_interview(user_input):
         bob_response = send_to_bob("Next question, please.")
         response = bob_response
         print("Bob:", bob_response)  # Print Bob's next question immediately
-        #audio = generate(bob_response, voice = "Bill")
-        #play(audio)
         is_user_response = True
         ask_new_question = False
 
     # No need to format the conversation here as each part is printed immediately
     return is_user_response, ask_new_question, response, sender
+
+def update_audio(file_path):
+    return gr.Audio(value=file_path, autoplay=True)
+
+def transcribe_audio(response):
+    audio = generate(response, voice = "Bill")
+    with open('audio_files/bobs_voice.mp3', 'wb') as file:
+        file.write(audio)
+
 
 def transcribe(audio):
     global is_user_response, ask_new_question
@@ -129,8 +132,10 @@ def transcribe(audio):
     y /= np.max(np.abs(y))
     user_text = transcriber({"sampling_rate": sr, "raw": y})["text"]
     is_user_response, ask_new_question, response, sender = handle_interview(user_text)
+    if sender == "Bob(interviewer)":
+        transcribe_audio(response)
     show_text = "User: " + user_text + "\n" + sender + ": " + response
-    return show_text
+    return show_text, update_audio(os.path.join(os.path.dirname(__file__), "audio_files/bobs_voice.mp3"))
 
 
 def main():
@@ -141,7 +146,7 @@ def main():
     demo = gr.Interface(
     fn=transcribe,
     inputs=[gr.Audio(sources=["microphone"])],
-    outputs=["text"]
+    outputs=[gr.Textbox(label="Transcribed Text"), gr.Audio(label="Updated Audio", type="filepath", autoplay=True)]
     )
 
     demo.launch()
