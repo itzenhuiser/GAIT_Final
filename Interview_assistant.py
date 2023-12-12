@@ -11,7 +11,7 @@ import os
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
 set_api_key("99128584b98eb68e0e4f3289f7386063")
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
@@ -102,7 +102,7 @@ def transcribe(audio):
     transcribe_audio(bob_response)
     show_text = "User: " + user_text + "\n" + "Bob(Interviewer): " + bob_response
     if dan_response != "":
-        reviewlog += "\n" + "Feedback on your response to the question: " + bob_response + "\n" + dan_response + "\n"
+        reviewlog += "\n" + "Feedback on your response to the question: " + bob_response + "\n" + dan_response + "\n" + "----------------------------------------------------------------------------------------------------------------------" + "\n"
     chatlog += show_text + "\n"
     return chatlog, update_audio(os.path.join(os.path.dirname(__file__), "audio_files/bobs_voice.mp3")), reviewlog
 
@@ -111,7 +111,7 @@ def main():
     demo = gr.Interface(
     fn=transcribe,
     inputs=[gr.Audio(sources=["microphone"])],
-    outputs=[gr.Textbox(label="Transcribed Text", value = "Say \"Start Interview\" and submit to begin interview \nSay \"Summarize Interview\" and submit to receive a full interview summary"), gr.Audio(label="Interviewer", type="filepath", autoplay=True), gr.Textbox(label="Dan(Reviewer)'s feedback", value="Waiting for response to give feedback")]
+    outputs=[gr.Textbox(label="Transcribed Text", value = "Say \"Start Interview\" and submit to begin interview \nSay \"Summarize Interview\" and submit to receive a full interview summary"), gr.Audio(label="Bob (Interviewer)", type="filepath", autoplay=True), gr.Textbox(label="Dan (Reviewer)'s feedback", value="Waiting for response to give feedback")]
     )
 
     demo.launch()
