@@ -9,9 +9,9 @@ import os
 
 
 ## possible names: Adam, Antoni, Arnold, Bill, Callum, Charlie, Clyde
-set_api_key("99128584b98eb68e0e4f3289f7386063")
+set_api_key("f7e8fd8196285c3f49961e6fbdd6c06e")
 # Initialize your OpenAI API key
-openai.api_key = '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'
+openai.api_key = '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'
 
 transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en")
 # Initialize conversation lists
